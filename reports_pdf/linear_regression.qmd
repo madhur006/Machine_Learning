@@ -1,0 +1,194 @@
+---
+title: "Linear Regression"
+author: "Madhur"
+format: pdf
+editor: visual
+---
+### Import Libraries 
+
+```{r results='hide', message=FALSE, warning=FALSE}
+library(tidyverse)
+library(MASS)
+library(ISLR2)
+library(car)
+```
+
+## Simple Linear Regression 
+
+#### Boston Dataset
+* 506 observations : 506 census tracts in Boston 
+* 12 predictors 
+* Target variable : medv = median house value
+
+
+```{r}
+glimpse(Boston)
+```
+```{r}
+pairs(Boston[, c("medv", "lstat", "rm", "crim")])
+
+```
+
+
+
+* **Simple Linear Regression**  
+  - predictor:lstat (lower status of the population %).
+  - target : medv 
+
+```{r}
+# simple linear regression with lstat predictor 
+attach(Boston)
+lm.fit <- lm(medv ~ lstat, data = Boston)
+summary(lm.fit)
+```
+```{r}
+names(lm.fit)
+```
+
+```{r}
+coefficients(lm.fit)
+confint(lm.fit)
+```
+* **Prediction Interval vs Confidence Interval**
+   - Confidence interval : when lstat = 10, the confidence interval is (24.47, 25.63). 
+   This means we are 95% confident that the true average value of medv for lstat = 10 lies within this range.
+   - For lstat = 10, the prediction interval is (12.83, 37.28). 
+   This range is wider because it accounts for the variability in individual data points, not just the variability in the     estimated mean.
+   - The predicted value (fit) for lstat = 10 is the same for both intervals: 25.05.
+
+```{r}
+predict(lm.fit, data.frame(lstat = (c(5,10,15,20))),
+        interval = "confidence")
+```
+```{r}
+predict(lm.fit, data.frame(lstat = (c(5,10,15,20))),
+        interval = "prediction")
+```
+* **Plot** 
+    - plot(predictor, target variable)
+    - add least square regression line `abline(model)` 
+```{r}
+# plot - predictor and target varaible 
+plot(lstat, medv, col = "grey", pch = "+")
+abline(lm.fit, col = "red")
+```
+
+
+* **Diagnostic Plots**
+    - Residual = Observed value − Predicted value
+    - Fitted values mean prediction values
+    - 1. Residuals vs. Fitted : Check for linearity and homoscedasticity (constant variance).
+      - Random scatter : good model 
+      - Patterns (e.g., curvature) suggest non-linearity
+      - Funnel-shaped patterns (widening or narrowing of residuals) suggest heteroscedasticity (non-constant variance).
+    - 2. Normal Q-Q Plot : check whether the residuals are normally distributed.
+    - 3. Scale-Location (Spread-Location) Plot : Purpose: To check for homoscedasticity (constant variance of residuals).
+      - The points should show a horizontal line with random scatter.
+      - A clear trend (e.g., an upward or downward slope) suggests heteroscedasticity.
+    - 4. Residuals vs. Leverage
+      - Identify influential data points.
+      - Points with high leverage (far to the right or left) and large residuals are influential and could
+
+```{r}
+par(mfrow = c(2, 2))
+plot(lm.fit)
+```
+* Leverage statistics can be computed for any number of predictors using the hatvalues() function. - influential data points.
+```{r}
+plot(hatvalues(lm.fit))
+abline(h = 2 * (length(coef(lm.fit)) / nrow(Boston)), col = 'red', lty =2 )
+```
+```{r}
+which.max(hatvalues(lm.fit))
+```
+* The `which.max()` function :  identifies the index of the largest element of a vector. 
+* It tells us which observation has the largest leverage statistic.
+
+
+## Multiple Linear Regression
+* predictor : 
+    - lstat : lower status of the population (percent).
+    - age : proportion of owner-occupied units built prior to 1940.
+* target : medv : median value of owner-occupied homes in $1000s.
+
+
+```{r}
+mlm.fit <- lm(medv ~ lstat + age, data = Boston)
+summary(lm.fit)
+```
+
+
+* MLR with all 12 predictors 
+  - RSE 
+  - R2
+  
+
+```{r}
+lm.fit <- lm(medv ~ ., data = Boston)
+summary(lm.fit)
+```
+* **R2** measures the proportion of variance in the dependent variable (response) that is explained by the independent     variables (predictors) in the model.
+  - Multiple R-squared measures the proportion of the variance in the response variable that is explained by the predictors in the model.
+  -This means 73.43% of the variance in the dependent variable is explained by the independent variables in the model.
+  - **Adjusted R2** : it penalizes adding predictors that do not significantly improve the model's performance.
+  - Adjusted R2 is slightly lower than 𝑅2(0.7278 compared to 0.7343) because it adjusts for the model's complexity.
+  -If the difference between R2 and Adjusted R2 is large, it may indicate that unnecessary predictors are included in the model.
+
+* **RSE** : RSE is a measure of the average deviation of the observed values from the fitted regression line, expressed in the same units as the response variable.
+  - If RSE = 4.7 for a model predicting housing prices in `$1000s`, the predictions are, on average, $4700 off from the      actual values.
+  
+* **VIF** : A high VIF indicates that a predictor is highly collinear with other predictors, which can make regression       coefficients unstable.
+    - VIF < 5: Generally acceptable.
+    - VIF > 10: Strong multicollinearity that requires attention.
+
+```{r}
+vif(lm.fit)
+
+```
+
+* Since `age` has high p-value remove it from the model 
+
+```{r}
+mlm.fit <- lm(medv ~ . -age , data = Boston)
+summary(mlm.fit)
+```
+
+### Interaction Terms
+
+```{r}
+imlr.fit <- lm(medv ~ lstat*age, data = Boston)
+summary(imlr.fit)
+```
+
+## Non-linear Transformations of the Predictors
+
+* Predictors : lstat and lstat^2
+* Use ANOVA to quantify if quadratic is better fit than linear. 
+```{r}
+qlm.fit <- lm(medv ~ lstat + I(lstat^2), data = Boston)
+summary(qlm.fit)
+```
+* **ANOVA** : From the result we can see
+  - Model 1: medv ~ lstat
+  - Model 2: medv ~ lstat + I(lstat^2)
+  - NULL Hypothesis : both model same. Alternate Hypothesis : Model 2 better 
+  - p-value almost 0 : Alternative hypothesis is true 
+  - We could have guessed it as there was non linear relationship (From Diagnostic Plot)
+```{r}
+lm.fit <- lm(medv ~ lstat)
+anova(lm.fit, qlm.fit)
+```
+```{r}
+par(mfrow = c(2, 2))
+plot(qlm.fit)
+```
+
+```{r}
+plm.fit <- lm(medv ~ poly(lstat, 5), data = Boston)
+summary(plm.fit)
+```
+* Log transformation of model 
+```{r}
+summary(lm(medv ~ log(rm), data = Boston))
+```
+
