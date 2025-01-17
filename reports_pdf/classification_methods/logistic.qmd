@@ -1,0 +1,134 @@
+---
+title: "Logistic Regression"
+format: pdf
+editor: visual
+---
+# The Stock Market Data
+* Smarket data : Consists of percentage returns for the S&P 500 stock index over 1,250 days, from the beginning of 2001 until the end of 2005
+* For each date :
+    -lagone through lagfive : percentage returns for each of the five previous trading days.
+    -volume (the number of shares traded on the previous day, in billions) – Today (the percentage return on the date in
+    question) and
+    - direction (whether the market was Up or Down on this date)
+* Target to predict whether shares will go upor down.
+
+```{r message=FALSE, warning=FALSE}
+library(ISLR2)
+library(tidyverse)
+```
+
+```{r}
+glimpse(Smarket)
+attach(Smarket)
+summary(Smarket)
+```
+
+
+```{r}
+pairs(Smarket)
+cor(Smarket[, 1:8])
+```
+
+
+```{r}
+plot(Smarket$Year, Smarket$Volume)
+plot(Volume)
+```
+
+* glm() : generalized linear model, binomial argument for logistic regression
+  -p-value for all the predictors is more than 0.05. Therefore no significant realtionship.
+
+
+```{r}
+
+glm.fits <- glm(
+    Direction ~ Lag1 + Lag2 + Lag3 + Lag4 + Lag5 + Volume,
+    data = Smarket, family = binomial
+  )
+summary(glm.fits)
+```
+
+```{r}
+coef(glm.fits)
+summary(glm.fits)$coef
+
+``` 
+  
+  * **Prediction** : Probabilities and confusion matrix
+
+```{r}
+glm.probs <- predict(glm.fits, type = "response")
+glm.probs[1:10]
+contrasts(Direction)
+```
+
+```{r}
+glm.pred <- rep("Down", 1250)
+glm.pred[glm.probs > 0.5] = "Up"
+table(glm.pred, Direction)
+```
+```{r}
+mean(glm.pred == Direction)
+```
+
+* Diagonal : correct prediction
+* The logistic regression model correctly predicted the movement of the market 52.2 % of the time.
+*  We trained and tested the model on same set : therfore 47.8% training error.
+
+**Split Data**
+```{r}
+training_data <- Smarket[Smarket$Year < 2005,]
+testing_data <- Smarket[Smarket$Year == 2005, ]
+dim(training_data)
+dim(testing_data)
+```
+
+
+```{r}
+glm.fits <- glm(Direction~ Lag1 + Lag2 + Lag3 + Lag4 + Lag5 + Volume, 
+                data = training_data,
+    family = binomial)
+glm.probs <- predict(glm.fits, testing_data, type = "response")
+```
+
+
+```{r}
+glm.pred <- rep("Down", 252)
+glm.pred[glm.probs > 0.5] <- "Up"
+table(glm.pred, testing_data$Direction)
+```
+
+```{r}
+# test error score
+mean(glm.pred != testing_data$Direction)
+```
+
+
+```{r}
+```
+* **Test error score**
+  -52% test error rate is worse than random guessing 
+  -logistic regression model had very underwhelming p-values associated with all of
+  the predictors,
+  -Let’s try to remove predictors with high p-values
+
+```{r}
+# Keep predictors with low p-values
+glm.fits <- glm(Direction ~ Lag1 + Lag2, data = training_data, family = binomial)
+glm.probs <- predict(glm.fits, testing_data, type = "response")
+glm.pred <- rep("Down", 252)
+glm.pred[glm.probs > 0.5] <- "Up"
+table(glm.pred, testing_data$Direction)
+```
+
+```{r}
+#testing error rate
+mean(glm.pred != testing_data$Direction)
+```
+* predict the returns associated with particular values of lagone and lagtwo.
+
+```{r}
+predict(glm.fits, newdata = data.frame(Lag1 = c(1.5, 2.0),
+                                       Lag2 = c(1.1, -0.5)),
+        type = "response")
+```
